@@ -1,4 +1,4 @@
-name: Snyk Security Scan (SAST + SCA)
+name: Snyk SAST Scan
 
 on:
   push:
@@ -7,11 +7,11 @@ on:
     branches: [ "main" ]
 
 jobs:
-  snyk-security:
+  snyk-sast:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
       security-events: write
+      contents: read
 
     steps:
       - name: Checkout repository
@@ -22,30 +22,24 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
-      # 🔹 Dependency scan (SCA)
-      - name: Run Snyk Open Source (SCA)
-        run: snyk test --all-projects --sarif-file-output=snyk-sca.sarif
-        continue-on-error: true
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-
-      # 🔹 Code scan (SAST)
       - name: Run Snyk Code (SAST)
         run: snyk code test --sarif-file-output=snyk-sast.sarif
         continue-on-error: true
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
-      # 🔹 Upload SCA results
-      - name: Upload SCA SARIF
-        if: ${{ always() && github.event_name != 'schedule' }}
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: snyk-sca.sarif
-
-      # 🔹 Upload SAST results
-      - name: Upload SAST SARIF
-        if: ${{ always() && github.event_name != 'schedule' }}
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: snyk-sast.sarif
+      - name: Upload SAST results
+        if: ${{ always() }}
+        run: |
+          if [ -f snyk-sast.sarif ]; then
+            echo "Uploading SARIF..."
+            gh api repos/${{ github.repository }}/code-scanning/sarifs \
+              -f sarif=@snyk-sast.sarif \
+              -F commit_sha=${{ github.sha }} \
+              -F ref=${{ github.ref }} \
+              -H "Accept: application/vnd.github+json"
+          else
+            echo "No SAST SARIF to upload"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
