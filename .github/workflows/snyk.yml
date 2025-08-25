@@ -1,4 +1,4 @@
-name: Snyk SAST Scan with Report
+name: Snyk SAST Scan
 
 on:
   push:
@@ -22,27 +22,18 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
-      # 🔹 Run Snyk Code (SAST) and create SARIF + HTML report
       - name: Run Snyk Code (SAST)
-        run: |
-          # SARIF faylı GitHub Security tab üçün
-          snyk code test --sarif-file-output=snyk-sast.sarif
-          
-          # HTML report çıxartmaq üçün
-          snyk code test --json > snyk-sast.json
-          snyk-to-html -i snyk-sast.json -o snyk-sast-report.html
+        run: snyk code test --sarif-file-output=snyk-sast.sarif
         continue-on-error: true
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
-      # 🔹 Upload SAST SARIF to Security tab
-      - name: Upload SAST SARIF
+      - name: Upload SAST results
         if: ${{ always() }}
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: snyk-sast.sarif
-
-      # 🔹 Upload HTML report as artifact
+          
       - name: Upload HTML report
         uses: actions/upload-artifact@v3
         with:
