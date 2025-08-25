@@ -1,4 +1,4 @@
-name: Snyk SAST Scan with HTML Report
+name: Snyk Full Security Scan
 
 on:
   push:
@@ -7,39 +7,71 @@ on:
     branches: [ "main" ]
 
 jobs:
-  snyk-sast:
+  snyk-scan:
     runs-on: ubuntu-latest
     permissions:
-      security-events: write
       contents: read
+      security-events: write
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Set up Node.js (for snyk-to-html)
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+
+      - name: Install Snyk-to-HTML
+        run: npm install -g snyk-to-html
 
       - name: Set up Snyk CLI
         uses: snyk/actions/setup@master
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
-      - name: Run Snyk Code (SAST) and create HTML report
+      # 🔹 Run Snyk SCA (dependencies)
+      - name: Run Snyk Open Source (SCA)
         run: |
-          snyk code test --sarif-file-output=snyk-sast.sarif
-          snyk code test --json > snyk-sast.json || echo "{}" > snyk-sast.json
-          if ! snyk-to-html -i snyk-sast.json -o snyk-sast-report.html; then
-            echo "<html><body><p>No issues found</p></body></html>" > snyk-sast-report.html
-          fi
+          snyk test --all-projects --sarif-file-output=snyk-sca.sarif || echo "{}" > snyk-sca.json
+          snyk-to-html -i snyk-sca.json -o snyk-sca-report.html || echo "<html><body><p>No SCA issues found</p></body></html>" > snyk-sca-report.html
         continue-on-error: true
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
+      # 🔹 Run Snyk SAST (code)
+      - name: Run Snyk Code (SAST)
+        run: |
+          snyk code test --sarif-file-output=snyk-sast.sarif || echo "{}" > snyk-sast.json
+          snyk code test --json > snyk-sast.json || echo "{}" > snyk-sast.json
+          snyk-to-html -i snyk-sast.json -o snyk-sast-report.html || echo "<html><body><p>No SAST issues found</p></body></html>" > snyk-sast-report.html
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+      # 🔹 Upload SCA SARIF
+      - name: Upload SCA SARIF
+        if: ${{ always() }}
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: snyk-sca.sarif
+
+      # 🔹 Upload SAST SARIF
       - name: Upload SAST SARIF
         if: ${{ always() }}
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: snyk-sast.sarif
 
-      - name: Upload HTML report
+      # 🔹 Upload SCA HTML report as artifact
+      - name: Upload SCA HTML report
+        uses: actions/upload-artifact@v4
+        with:
+          name: snyk-sca-report
+          path: snyk-sca-report.html
+
+      # 🔹 Upload SAST HTML report as artifact
+      - name: Upload SAST HTML report
         uses: actions/upload-artifact@v4
         with:
           name: snyk-sast-report
