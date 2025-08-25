@@ -35,7 +35,7 @@ jobs:
           sarif_file: snyk-sast.sarif
           
       - name: Upload HTML report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: snyk-sast-report
           path: snyk-sast-report.html
