@@ -22,17 +22,13 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
-      # 🔎 Run Snyk Code (SAST)
       - name: Run Snyk Code (SAST)
-        id: snyk-sast
         run: snyk code test --sarif-file-output=snyk-sast.sarif
         continue-on-error: true
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
-      # 📤 Upload SAST results only if file exists
       - name: Upload SAST results
-        if: ${{ steps.snyk-sast.outcome == 'success' && always() && (filesExist('snyk-sast.sarif')) }}
         run: |
           if [ -f snyk-sast.sarif ]; then
             gh api repos/${{ github.repository }}/code-scanning/sarifs \
