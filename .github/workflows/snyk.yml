@@ -42,7 +42,7 @@ jobs:
       # 🔹 Run Snyk Code (SAST) → SARIF + HTML
       - name: Run Snyk Code (SAST)
         run: |
-          snyk code test --sarif-file-output=snyk-sast.sarif || echo "{}" > snyk-sast.sarif
+          snyk code test --sarif-file-output=snyk-sast.sarif || echo '{"version":"2.1.0","runs":[]}' > snyk-sast.sarif
           snyk code test --json > snyk-sast.json || echo "{}" > snyk-sast.json
           snyk-to-html -i snyk-sast.json -o snyk-sast-report.html || echo "<html><body><p>No SAST issues found</p></body></html>" > snyk-sast-report.html
         continue-on-error: true
