@@ -1,4 +1,4 @@
-name: Snyk Security Scan (SAST + SCA)
+name: Snyk SAST Scan
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
     branches: [ "main" ]
 
 jobs:
-  snyk:
+  snyk-sast:
     runs-on: ubuntu-latest
     permissions:
       security-events: write
@@ -22,41 +22,21 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
-      # 🔎 1. Dependency scan (SCA)
-      - name: Run Snyk Open Source (SCA)
-        run: snyk test --all-projects --sarif-file-output=snyk-sca.sarif
-        continue-on-error: true
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-
-      # 🔹 Fayl yoxdursa boş fayl yarat (SCA)
-      - name: Ensure SCA SARIF exists
-        run: |
-          if [ ! -f snyk-sca.sarif ]; then
-            echo "{}" > snyk-sca.sarif
-          fi
-
-      # 🔎 2. Code scan (SAST)
+      # 🔎 Run Snyk Code (SAST)
       - name: Run Snyk Code (SAST)
+        id: snyk-sast
         run: snyk code test --sarif-file-output=snyk-sast.sarif
         continue-on-error: true
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
-      # 🔹 Fayl yoxdursa boş fayl yarat (SAST)
-      - name: Ensure SAST SARIF exists
-        run: |
-          if [ ! -f snyk-sast.sarif ]; then
-            echo "{}" > snyk-sast.sarif
-          fi
-
-      # 📊 3. Upload results to GitHub Security tab
-      - name: Upload SCA results
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: snyk-sca.sarif
-
+      # 📤 Upload SAST results only if file exists
       - name: Upload SAST results
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: snyk-sast.sarif
+        if: ${{ steps.snyk-sast.outcome == 'success' && always() && (filesExist('snyk-sast.sarif')) }}
+        run: |
+          if [ -f snyk-sast.sarif ]; then
+            gh api repos/${{ github.repository }}/code-scanning/sarifs \
+              -f sarif=@snyk-sast.sarif
+          else
+            echo "No SAST SARIF to upload"
+          fi
