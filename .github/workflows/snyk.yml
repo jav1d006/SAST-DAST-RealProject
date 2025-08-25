@@ -1,7 +1,7 @@
 name: Snyk Scan
 
 on:
-  workflow_dispatch:
+  workflow_dispatch:   # əl ilə işə salmaq üçün
 
 jobs:
   snyk:
@@ -11,7 +11,7 @@ jobs:
 
       - name: Run Snyk to check for vulnerabilities
         uses: snyk/actions/node@master
-        continue-on-error: true   # ❗️ pipeline dayansın istəmirsənsə
+        continue-on-error: true   # nəticə versin, amma fail olmasın
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
