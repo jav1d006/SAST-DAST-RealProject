@@ -1,11 +1,17 @@
 // vulnerable.js
-// Snyk Code üçün zəiflik nümunəsi
+// Məqsədli zəiflik nümunəsi (Snyk Code üçün)
 
-function insecureEval(userInput) {
-    // XƏBƏRDARLIQ: eval təhlükəli → SAST tapacaq
-    return eval(userInput);
-}
+// HTTP request + user input
+const http = require('http');
+const url = require('url');
 
-// Nümunə istifadə
-let userData = "2 + 2";
-console.log(insecureEval(userData));
+http.createServer((req, res) => {
+    const queryObject = url.parse(req.url, true).query;
+    if(queryObject.cmd) {
+        // XƏBƏRDARLIQ: eval təhlükəli → SAST tapacaq
+        const output = eval(queryObject.cmd);
+        res.end(`Result: ${output}`);
+    } else {
+        res.end('Send a query parameter "cmd"');
+    }
+}).listen(8080, () => console.log('Server running on port 8080'));
