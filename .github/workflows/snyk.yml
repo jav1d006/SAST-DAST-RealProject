@@ -52,14 +52,14 @@ jobs:
       # 🔹 Upload SCA SARIF
       - name: Upload SCA SARIF
         if: ${{ always() }}
-        uses: github/codeql-action/upload-sarif@v4
+        uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: snyk-sca.sarif
 
       # 🔹 Upload SAST SARIF
       - name: Upload SAST SARIF
         if: ${{ always() }}
-        uses: github/codeql-action/upload-sarif@v4
+        uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: snyk-sast.sarif
 
