@@ -1,4 +1,4 @@
-name: Snyk Security Scan (SCA + SAST)
+name: Snyk Security Scan (SAST + SCA)
 
 on:
   push:
@@ -17,7 +17,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Snyk
+      - name: Set up Snyk CLI
         uses: snyk/actions/setup@master
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
@@ -29,6 +29,13 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
+      # 🔹 Fayl yoxdursa boş fayl yarat (SCA)
+      - name: Ensure SCA SARIF exists
+        run: |
+          if [ ! -f snyk-sca.sarif ]; then
+            echo "{}" > snyk-sca.sarif
+          fi
+
       # 🔎 2. Code scan (SAST)
       - name: Run Snyk Code (SAST)
         run: snyk code test --sarif-file-output=snyk-sast.sarif
@@ -36,13 +43,20 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
+      # 🔹 Fayl yoxdursa boş fayl yarat (SAST)
+      - name: Ensure SAST SARIF exists
+        run: |
+          if [ ! -f snyk-sast.sarif ]; then
+            echo "{}" > snyk-sast.sarif
+          fi
+
       # 📊 3. Upload results to GitHub Security tab
-      - name: Upload results (SCA)
+      - name: Upload SCA results
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: snyk-sca.sarif
 
-      - name: Upload results (SAST)
+      - name: Upload SAST results
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: snyk-sast.sarif
