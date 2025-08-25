@@ -29,6 +29,8 @@ jobs:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
       - name: Upload SAST results
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if [ -f snyk-sast.sarif ]; then
             gh api repos/${{ github.repository }}/code-scanning/sarifs \
