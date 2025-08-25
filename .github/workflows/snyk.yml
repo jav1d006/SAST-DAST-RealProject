@@ -1,34 +1,48 @@
-name: Snyk Scan
+name: Snyk Security Scan (SCA + SAST)
 
 on:
   push:
-    branches:
-      - main
-      - master
+    branches: [ "main" ]
   pull_request:
+    branches: [ "main" ]
 
 jobs:
   snyk:
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+    permissions:
+      security-events: write
+      contents: read
 
-      - name: Run Snyk to check for vulnerabilities
-        uses: snyk/actions/node@master
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Snyk
+        uses: snyk/actions/setup@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
+      # 🔎 1. Dependency scan (SCA)
+      - name: Run Snyk Open Source (SCA)
+        run: snyk test --all-projects --sarif-file-output=snyk-sca.sarif
         continue-on-error: true
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        with:
-          args: test --all-projects --sarif-file-output=snyk-report.sarif
 
-      - name: Ensure SARIF exists
-        run: |
-          if [ ! -f snyk-report.sarif ]; then
-            echo "{}" > snyk-report.sarif
-          fi
+      # 🔎 2. Code scan (SAST)
+      - name: Run Snyk Code (SAST)
+        run: snyk code test --sarif-file-output=snyk-sast.sarif
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
-      - name: Upload Snyk report
-        uses: actions/upload-artifact@v4
+      # 📊 3. Upload results to GitHub Security tab
+      - name: Upload results (SCA)
+        uses: github/codeql-action/upload-sarif@v3
         with:
-          name: snyk-report
-          path: snyk-report.sarif
+          sarif_file: snyk-sca.sarif
+
+      - name: Upload results (SAST)
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: snyk-sast.sarif
