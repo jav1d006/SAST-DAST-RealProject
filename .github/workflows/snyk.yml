@@ -41,17 +41,24 @@ jobs:
 
       # 🔹 Run Snyk Code (SAST) → SARIF + HTML
       - name: Run Snyk Code (SAST)
+        id: snyk-sast
         run: |
           snyk code test --sarif-file-output=snyk-sast.sarif || echo '{"version":"2.1.0","runs":[]}' > snyk-sast.sarif
+          # Boş SARIF yoxlanışı
+          if grep -q '"runs": \[\]' snyk-sast.sarif; then
+            echo "sarif_exists=false" >> $GITHUB_OUTPUT
+          else
+            echo "sarif_exists=true" >> $GITHUB_OUTPUT
+          fi
           snyk code test --json > snyk-sast.json || echo "{}" > snyk-sast.json
           snyk-to-html -i snyk-sast.json -o snyk-sast-report.html || echo "<html><body><p>No SAST issues found</p></body></html>" > snyk-sast-report.html
         continue-on-error: true
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
-      # 🔹 Upload SAST SARIF only (Security tab)
+      # 🔹 Upload SAST SARIF only if not empty
       - name: Upload SAST SARIF
-        if: ${{ always() }}
+        if: ${{ steps.snyk-sast.outputs.sarif_exists == 'true' }}
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: snyk-sast.sarif
