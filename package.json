@@ -1,0 +1,8 @@
+{
+  "name": "sast-dast-test",
+  "version": "1.0.0",
+  "dependencies": {
+    "lodash": "4.17.21",      // köhnə versiya → Snyk tapacaq
+    "express": "4.17.1"       // köhnə versiya → Snyk tapacaq
+  }
+}
