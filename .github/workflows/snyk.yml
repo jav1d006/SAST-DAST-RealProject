@@ -22,7 +22,7 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Install Snyk-to-HTML
+      - name: Install snyk-to-html
         run: npm install -g snyk-to-html
 
       - name: Set up Snyk CLI
@@ -30,19 +30,20 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
-      # 🔹 Run Snyk SCA (dependencies)
+      # 🔹 Run Snyk Open Source (SCA)
       - name: Run Snyk Open Source (SCA)
         run: |
-          snyk test --all-projects --sarif-file-output=snyk-sca.sarif || echo "{}" > snyk-sca.json
+          snyk test --all-projects --sarif-file-output=snyk-sca.sarif || echo "{}" > snyk-sca.sarif
+          snyk test --all-projects --json > snyk-sca.json || echo "{}" > snyk-sca.json
           snyk-to-html -i snyk-sca.json -o snyk-sca-report.html || echo "<html><body><p>No SCA issues found</p></body></html>" > snyk-sca-report.html
         continue-on-error: true
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
-      # 🔹 Run Snyk SAST (code)
+      # 🔹 Run Snyk Code (SAST)
       - name: Run Snyk Code (SAST)
         run: |
-          snyk code test --sarif-file-output=snyk-sast.sarif || echo "{}" > snyk-sast.json
+          snyk code test --sarif-file-output=snyk-sast.sarif || echo "{}" > snyk-sast.sarif
           snyk code test --json > snyk-sast.json || echo "{}" > snyk-sast.json
           snyk-to-html -i snyk-sast.json -o snyk-sast-report.html || echo "<html><body><p>No SAST issues found</p></body></html>" > snyk-sast-report.html
         continue-on-error: true
@@ -63,14 +64,14 @@ jobs:
         with:
           sarif_file: snyk-sast.sarif
 
-      # 🔹 Upload SCA HTML report as artifact
+      # 🔹 Upload SCA HTML report
       - name: Upload SCA HTML report
         uses: actions/upload-artifact@v4
         with:
           name: snyk-sca-report
           path: snyk-sca-report.html
 
-      # 🔹 Upload SAST HTML report as artifact
+      # 🔹 Upload SAST HTML report
       - name: Upload SAST HTML report
         uses: actions/upload-artifact@v4
         with:
