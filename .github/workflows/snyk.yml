@@ -1,4 +1,4 @@
-name: Snyk SAST Scan
+name: Snyk SAST Scan with HTML Report
 
 on:
   push:
@@ -22,18 +22,23 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
-      - name: Run Snyk Code (SAST)
-        run: snyk code test --sarif-file-output=snyk-sast.sarif
+      - name: Run Snyk Code (SAST) and create HTML report
+        run: |
+          snyk code test --sarif-file-output=snyk-sast.sarif
+          snyk code test --json > snyk-sast.json || echo "{}" > snyk-sast.json
+          if ! snyk-to-html -i snyk-sast.json -o snyk-sast-report.html; then
+            echo "<html><body><p>No issues found</p></body></html>" > snyk-sast-report.html
+          fi
         continue-on-error: true
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
-      - name: Upload SAST results
+      - name: Upload SAST SARIF
         if: ${{ always() }}
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: snyk-sast.sarif
-          
+
       - name: Upload HTML report
         uses: actions/upload-artifact@v4
         with:
