@@ -1,4 +1,4 @@
-name: Snyk Full Security Scan
+name: Snyk Security Scan
 
 on:
   push:
@@ -9,15 +9,12 @@ on:
 jobs:
   snyk-scan:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      security-events: write
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Node.js (for snyk-to-html)
+      - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '20'
@@ -30,40 +27,30 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
-      # 🔹 Run Snyk Open Source (SCA) → HTML only
-      - name: Run Snyk Open Source (SCA)
-        run: |
-          snyk test --all-projects --json > snyk-sca.json || echo "{}" > snyk-sca.json
-          snyk-to-html -i snyk-sca.json -o snyk-sca-report.html || echo "<html><body><p>No SCA issues found</p></body></html>" > snyk-sca-report.html
-        continue-on-error: true
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-
-      # 🔹 Run Snyk Code (SAST) → SARIF + HTML
       - name: Run Snyk Code (SAST)
         id: snyk-sast
         run: |
           snyk code test --sarif-file-output=snyk-sast.sarif || echo '{"version":"2.1.0","runs":[]}' > snyk-sast.sarif
-          # Boş SARIF yoxlanışı
-          if grep -q '"runs": \[\]' snyk-sast.sarif; then
-            echo "sarif_exists=false" >> $GITHUB_OUTPUT
-          else
-            echo "sarif_exists=true" >> $GITHUB_OUTPUT
-          fi
           snyk code test --json > snyk-sast.json || echo "{}" > snyk-sast.json
           snyk-to-html -i snyk-sast.json -o snyk-sast-report.html || echo "<html><body><p>No SAST issues found</p></body></html>" > snyk-sast-report.html
-        continue-on-error: true
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
-      # 🔹 Upload SAST SARIF only if not empty
-      - name: Upload SAST SARIF
-        if: ${{ steps.snyk-sast.outputs.sarif_exists == 'true' }}
+      - name: Check if SARIF file is empty
+        id: check_sarif
+        run: |
+          if [ ! -s snyk-sast.sarif ]; then
+            echo "SARIF file is empty, skipping upload."
+            echo "skip_upload=true" >> $GITHUB_ENV
+          else
+            echo "SARIF file is not empty, proceeding with upload."
+            echo "skip_upload=false" >> $GITHUB_ENV
+        continue-on-error: true
+
+      - name: Upload SARIF file
+        if: env.skip_upload == 'false'
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: snyk-sast.sarif
 
-      # 🔹 Upload HTML reports as artifacts
       - name: Upload SCA HTML report
         uses: actions/upload-artifact@v4
         with:
