@@ -5,60 +5,54 @@ on:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
+  workflow_dispatch:
 
 jobs:
   snyk-scan:
     runs-on: ubuntu-latest
 
     steps:
+      # 1️⃣ Checkout repo
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # 2️⃣ Node.js setup
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '20'
 
+      # 3️⃣ Install snyk-to-html globally
       - name: Install snyk-to-html
         run: npm install -g snyk-to-html
 
-      - name: Set up Snyk CLI
+      # 4️⃣ Setup Snyk CLI
+      - name: Setup Snyk CLI
         uses: snyk/actions/setup@master
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
-      - name: Run Snyk Code (SAST)
-        id: snyk-sast
+      # 5️⃣ Run Snyk Code (SAST) and SCA
+      - name: Run Snyk scan
         run: |
-          snyk code test --sarif-file-output=snyk-sast.sarif || echo '{"version":"2.1.0","runs":[]}' > snyk-sast.sarif
+          # SAST scan
           snyk code test --json > snyk-sast.json || echo "{}" > snyk-sast.json
           snyk-to-html -i snyk-sast.json -o snyk-sast-report.html || echo "<html><body><p>No SAST issues found</p></body></html>" > snyk-sast-report.html
 
-      - name: Check if SARIF file is empty
-        id: check_sarif
-        run: |
-          if [ ! -s snyk-sast.sarif ]; then
-            echo "SARIF file is empty, skipping upload."
-            echo "skip_upload=true" >> $GITHUB_ENV
-          else
-            echo "SARIF file is not empty, proceeding with upload."
-            echo "skip_upload=false" >> $GITHUB_ENV
-        continue-on-error: true
+          # SCA scan
+          snyk test --all-projects --json > snyk-sca.json || echo "{}" > snyk-sca.json
+          snyk-to-html -i snyk-sca.json -o snyk-sca-report.html || echo "<html><body><p>No SCA issues found</p></body></html>" > snyk-sca-report.html
 
-      - name: Upload SARIF file
-        if: env.skip_upload == 'false'
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: snyk-sast.sarif
-
-      - name: Upload SCA HTML report
-        uses: actions/upload-artifact@v4
-        with:
-          name: snyk-sca-report
-          path: snyk-sca-report.html
-
+      # 6️⃣ Upload SAST HTML report as artifact
       - name: Upload SAST HTML report
         uses: actions/upload-artifact@v4
         with:
           name: snyk-sast-report
           path: snyk-sast-report.html
+
+      # 7️⃣ Upload SCA HTML report as artifact
+      - name: Upload SCA HTML report
+        uses: actions/upload-artifact@v4
+        with:
+          name: snyk-sca-report
+          path: snyk-sca-report.html
